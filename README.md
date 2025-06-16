@@ -30,10 +30,10 @@ npm install
 ### Skapa och fyll i `.env`-fil
 
 ```env
-DB_USER=postgres
-DB_PASSWORD=postgres
+DB_USER=****
+DB_PASSWORD=****
 DB_NAME=ecommerce
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/ecommerce
+DATABASE_URL=postgres://****:****@localhost:5432/ecommerce
 JWT_SECRET=dinhemlighetnyckel
 JWT_EXPIRES_IN=2h
 PORT=4000
