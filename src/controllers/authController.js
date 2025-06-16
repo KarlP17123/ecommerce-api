@@ -1,9 +1,15 @@
 const pool = require('../../db');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken'); // Importera jsonwebtoken
+const jwt = require('jsonwebtoken');
+const { validationResult } = require('express-validator');
 
-// Registreringsfunktionen
+// Registreringsfunktion
 const registerUser = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { username, email, password } = req.body;
 
   try {
@@ -18,20 +24,26 @@ const registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Lägg till 'role' som default 'user'
     const newUser = await pool.query(
-      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email',
-      [username, email, hashedPassword]
+      'INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role',
+      [username, email, hashedPassword, 'user']
     );
 
-    res.status(201).json({ user: newUser.rows[0] });
+    res.status(201).json({ message: '✅ Registrering lyckades!', user: newUser.rows[0] });
   } catch (err) {
-    console.error(err);
+    console.error('❌ Register error:', err);
     res.status(500).json({ error: 'Serverfel vid registrering' });
   }
 };
 
-// Loginfunktionen med JWT-token
+// Loginfunktion
 const loginUser = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { username, password } = req.body;
 
   try {
@@ -42,32 +54,31 @@ const loginUser = async (req, res) => {
     }
 
     const user = userResult.rows[0];
-
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({ error: 'Felaktigt användarnamn eller lösenord' });
     }
 
-    // Skapa JWT-token
+    // Inkludera role i token
     const token = jwt.sign(
-      { id: user.id, username: user.username, email: user.email },
+      { id: user.id, username: user.username, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
-    // Skicka tillbaka token och användardata
     res.json({
-      message: 'Inloggning lyckades!',
+      message: '✅ Inloggning lyckades!',
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role
       },
       token
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ error: 'Serverfel vid inloggning' });
   }
 };

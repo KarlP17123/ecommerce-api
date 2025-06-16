@@ -1,37 +1,51 @@
 const express = require('express');
-const pool = require('../db'); // 🟢 Importera databaspoolen
+const cors = require('cors');
+const morgan = require('morgan');
 require('dotenv').config();
 
-const authRoutes = require('./routes/auth'); // ✅ Importera auth-routes
-const authenticateToken = require('./middleware/authMiddleware'); // 🛡️ Importera JWT-middleware
+// Importera Swagger
+const setupSwagger = require('./swagger');
+
+// Importera routes
+const authRoutes = require('./routes/authRoutes');
+const productRoutes = require('./routes/productRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
+app.use(cors());
+app.use(morgan('dev'));
 app.use(express.json());
 
-// 🔗 Lägg till auth-routes
-app.use('/api', authRoutes); // 👉 Alla auth-routes som /api/register och /api/login
+// Swagger-dokumentation
+setupSwagger(app);
 
-// 🔐 Skyddad route som kräver JWT-token
-app.get('/api/protected', authenticateToken, (req, res) => {
-  res.json({
-    message: 'Detta är en skyddad route',
-    user: req.user, // Här finns data från JWT-token
-  });
+// API-rutter
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+
+// Test-route för att kolla att API är igång
+app.get('/', (req, res) => {
+  res.send('✅ API är igång!');
 });
 
-// 🔍 Test-rutt för att kolla databasanslutning
-app.get('/test-db', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW()');
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Database error:', error);
-    res.status(500).send('Database connection failed');
-  }
+// 404-fallback för rutter som inte finns
+app.use((req, res) => {
+  res.status(404).json({ error: 'Sidan hittades inte' });
 });
 
+// Global felhanterare
+app.use((err, req, res, next) => {
+  console.error('❌ Serverfel:', err);
+  res.status(500).json({ error: 'Internt serverfel' });
+});
+
+// Starta servern
 app.listen(PORT, () => {
   console.log(`🚀 Servern körs på http://localhost:${PORT}`);
 });
